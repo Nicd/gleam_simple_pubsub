@@ -1,6 +1,7 @@
 import gleam/dynamic
-import gleam/erlang
+import gleam/dynamic/decode
 import gleam/erlang/process
+import gleam/erlang/reference.{type Reference}
 import gleam/list
 import processgroups as pg
 
@@ -9,7 +10,7 @@ fn unsafe_coerce(a: dynamic.Dynamic) -> a
 
 /// A pubsub, where process can subscribe and anyone can broadcast
 pub type PubSub(message) {
-  PubSub(tag: erlang.Reference)
+  PubSub(tag: Reference)
 }
 
 /// A Subscription is crated by subscribing to a PubSub
@@ -21,7 +22,7 @@ pub type Subscription(message) {
 
 /// Create a new pubsub
 pub fn new_pubsub() -> PubSub(message) {
-  PubSub(erlang.make_reference())
+  PubSub(reference.new())
 }
 
 /// Subscribe a process to a PubSub.
@@ -42,7 +43,7 @@ pub fn receive(
 ) -> Result(message, Nil) {
   process.new_selector()
   |> selecting_pubsub_subject(subject, fn(x) { x })
-  |> process.select(within: milliseconds)
+  |> process.selector_receive(within: milliseconds)
 }
 
 /// Unsubsribe a process from a PubSub.
@@ -68,18 +69,18 @@ pub fn selecting_pubsub_subject(
   subject: Subscription(message),
   handler: fn(message) -> payload,
 ) -> process.Selector(payload) {
-  process.selecting_record2(selector, subject.pubsub.tag, fn(d) {
-    d
-    |> unsafe_coerce
-    |> handler
+  process.select_record(selector, subject.pubsub.tag, 1, fn(d) {
+    let assert Ok(payload) =
+      decode.run(d, decode.field(1, decode.dynamic, decode.success))
+    handler(unsafe_coerce(payload))
   })
 }
 
-/// Monitor a PubSub. A `pg.GorupMonitor` event will be 
-/// send, when a process subscribes or unsubscribes.
+/// Monitor a PubSub. A `pg.GroupMonitor` event will be
+/// sent when a process subscribes or unsubscribes.
 pub fn monitor(
   pubsub: PubSub(message),
-) -> #(pg.GroupMonitor(erlang.Reference), List(process.Pid)) {
+) -> #(pg.GroupMonitor(Reference), List(process.Pid)) {
   pg.monitor(pubsub.tag)
 }
 

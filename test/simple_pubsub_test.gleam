@@ -1,6 +1,5 @@
 import gleam/erlang/process
 import gleam/list
-import gleam/otp/task
 import gleeunit
 import gleeunit/should
 import processgroups as pg
@@ -32,15 +31,17 @@ pub fn send_receive_multiple_test() {
   // setup
   let pubsub = ps.new_pubsub()
   let #(monitor, _) = ps.monitor(pubsub)
-  let tasks =
+  let task_subjects =
     list.range(1, 10)
     |> list.map(fn(_) {
+      let parent = process.new_subject()
       // start the task
-      let task =
-        task.async(fn() {
+      process.spawn(fn() {
+        let assert Ok(msg) =
           ps.subscribe(pubsub, process.self())
           |> ps.receive(100)
-        })
+        process.send(parent, msg)
+      })
       // wait for it to register
       let _ =
         pg.selecting_process_group_monitor(
@@ -48,17 +49,17 @@ pub fn send_receive_multiple_test() {
           monitor,
           fn(a) { a.pids },
         )
-        |> process.select(100)
-      // return the task
-      task
+        |> process.selector_receive(100)
+      // return the task subject to receive on
+      parent
     })
 
   // act
   ps.broadcast(pubsub, PubSubMessage)
   let res =
-    tasks
+    task_subjects
     |> list.map(fn(t) {
-      let assert Ok(msg) = task.await(t, 100)
+      let assert Ok(msg) = process.receive(t, 100)
       msg
     })
 
