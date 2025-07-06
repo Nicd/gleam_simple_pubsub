@@ -1,14 +1,14 @@
 # Simple PubSub for gleam
 
 Simple PubSub for gleam, based on
-[process groups](https://hex.pm/packages/process_groups).
+[process groups](https://hex.pm/packages/processgroups).
 
 [![Package Version](https://img.shields.io/hexpm/v/simple_pubsub)](https://hex.pm/packages/simple_pubsub)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/simple_pubsub/)
 
 ## Usage
 
-Add this  library to your Gleam project
+Add this library to your Gleam project
 
 ```sh
 gleam add simple_pubsub
@@ -20,7 +20,7 @@ And use it in your project
 
 ```gleam
 import simple_pubsub as ps
-import process_groups
+import processgroups
 import gleam/erlang/process
 
 // Messages we want to send over the PubSub
@@ -30,7 +30,7 @@ type PubSubMessage{
 
 pub fn main() {
     // start process groups, needed for pubsub
-    process_groups.start_link()
+    processgroups.start_link()
 
     // create a pubsub
     let pubsub = ps.new_pubsub()
@@ -45,6 +45,7 @@ pub fn main() {
     let assert Ok(PubSubMessage) = ps.receive(subscription, 100)
 }
 ```
+
 ## Development
 
 ```sh
